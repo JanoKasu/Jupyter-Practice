@@ -1,6 +1,8 @@
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from getpass import getpass
+import pandas as pd
 import base64
 import os
 
@@ -25,27 +27,56 @@ def main_menu():
 		elif option == 2:
 			new_user_menu()
 		elif option == 3:
-			remove_user()
+			user = log_in()
+			remove_user(user)
 		else:
 			print('Invalid Option')
 
 	except Exception as e:
-		print(e)
+		print('Exception: ', e)
 		exit(1)
 
 
 def log_in():
 	user = input('Enter Username: ')
-	masterpass = input('Enter your master password: ')
+	masterpw = getpass('Enter your master password: ')
 
-	encrypted = open('pwmanager.csv', 'rb')
-	with open('private_key.pem', 'rb') as key:
-		decrypted = Fernet.decrypt(encrypted, key)
-		verify_masterpass(masterpass, decrypted)
+	encrypted = open('src/data/masterpw.csv', 'rb').read()
+	# To Do
+	return user
 
 
-def verify_masterpass(masterpass, decrypted):
+def verify_masterpass(masterpw, csv):
 	print('To Do')
+
+
+def generate_key_from_masterpw(masterpw, salt):
+	kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000
+    )
+	return kdf.derive(masterpw.encode())
+
+
+def generate_salt(length = 16):
+	return os.urandom(length)
+
+
+def verify_password(stored_salt, stored_hashedpw, entered_password):
+    salt = base64.b64decode(stored_salt)
+    stored_hashedpw = base64.b64decode(stored_hashedpw)
+	
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,
+    )
+
+    entered_hashedpw = kdf.derive(entered_password.encode('utf-8'))
+    return entered_hashedpw == stored_hashedpw
 
 
 def existing_user_menu(user):
@@ -66,16 +97,30 @@ def existing_user_menu(user):
 			print('Invalid Option')
 
 	except Exception as e:
-		print(e)
+		print('Exception: ', e)
 		exit(1)
 
 
 def new_user_menu():
+	# Check for unique username
 	username = input('Give a username: ')
-	# Add the user to the csv
+	csv = pd.read_csv('src/data/masterpw.csv')
+	if username in csv['username'].values:
+		print('User already exists')
+		return
+	
+	# Add a master password
+	masterpw = getpass('Enter a master password: ')
+	salt = generate_salt()
+	encrypted_master_key = generate_key_from_masterpw(masterpw, salt)
+	new_row = {'username':username, 'salt':salt, 'encrypted_master_key':encrypted_master_key}
+	csv.loc[len(csv)] = new_row
+	csv.to_csv('src/data/masterpw.csv', index=False)
+
+	print('Successful Entry')
 
 
-def remove_user():
+def remove_user(user):
 	print('To Do')
 
 
@@ -85,13 +130,19 @@ def see_passwords(user):
 
 def add_password(user):
 	print('To Do')
-
+	
 
 def main():
-	if not os.path.exists('pwmanager.csv'):
-		file = open('pwmanager.csv', 'x')
+	if not os.path.exists('src/data/user_passwords.csv'):
+		file = open('src/data/user_passwords.csv', 'x')
+		file.write('username,site_name,encrypted_password,initialization_vector')
 		file.close()
 	
+	if not os.path.exists('src/data/masterpw.csv'):
+		file = open('src/data/masterpw.csv', 'x')
+		file.write('username,salt,encrypted_master_key')
+		file.close()
+
 	while True:
 		main_menu()
 
