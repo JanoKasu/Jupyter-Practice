@@ -38,12 +38,27 @@ def main_menu():
 
 
 def log_in():
-	user = input('Enter Username: ')
-	masterpw = getpass('Enter your master password: ')
+	csv = pd.read_csv('src/data/masterpw.csv')
+	username = input('Enter Username: ')
 
-	encrypted = open('src/data/masterpw.csv', 'rb').read()
-	# To Do
-	return user
+	if username not in csv['username'].values:
+		print('User Not Found')
+		return
+
+	user_data = csv[csv['username'] == username]
+
+	byte_str = user_data['salt'].values[0]
+	salt = base64.b64decode(byte_str)
+	
+	masterpw = getpass('Enter your master password: ')
+	entered_encrypted_masterpw = generate_key_from_masterpw(masterpw, salt)
+	
+	print(user_data['encrypted_master_key'].values[0])
+	if entered_encrypted_masterpw != user_data['encrypted_master_key'].values[0]:
+		print('Incorrect Password')
+		return
+
+	return username
 
 
 def verify_masterpass(masterpw, csv):
@@ -111,7 +126,7 @@ def new_user_menu():
 	
 	# Add a master password
 	masterpw = getpass('Enter a master password: ')
-	salt = generate_salt()
+	salt = base64.b64encode(generate_salt()).decode('utf-8')
 	encrypted_master_key = generate_key_from_masterpw(masterpw, salt)
 	new_row = {'username':username, 'salt':salt, 'encrypted_master_key':encrypted_master_key}
 	csv.loc[len(csv)] = new_row
