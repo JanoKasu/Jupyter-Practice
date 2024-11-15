@@ -1,10 +1,5 @@
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from helper_functions import *
 from getpass import getpass
-import pandas as pd
-import base64
-import os
 
 
 def main_menu():
@@ -44,54 +39,10 @@ def log_in():
 	if username not in csv['username'].values:
 		print('User Not Found')
 		return
-
-	user_data = csv[csv['username'] == username]
-
-	byte_str = user_data['salt'].values[0]
-	salt = base64.b64decode(byte_str)
 	
 	masterpw = getpass('Enter your master password: ')
-	entered_encrypted_masterpw = generate_key_from_masterpw(masterpw, salt)
-	
-	print(user_data['encrypted_master_key'].values[0])
-	if entered_encrypted_masterpw != user_data['encrypted_master_key'].values[0]:
-		print('Incorrect Password')
-		return
-
-	return username
-
-
-def verify_masterpass(masterpw, csv):
-	print('To Do')
-
-
-def generate_key_from_masterpw(masterpw, salt):
-	kdf = PBKDF2HMAC(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=salt,
-        iterations=100000
-    )
-	return kdf.derive(masterpw.encode())
-
-
-def generate_salt(length = 16):
-	return os.urandom(length)
-
-
-def verify_password(stored_salt, stored_hashedpw, entered_password):
-    salt = base64.b64decode(stored_salt)
-    stored_hashedpw = base64.b64decode(stored_hashedpw)
-	
-    kdf = PBKDF2HMAC(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=salt,
-        iterations=100000,
-    )
-
-    entered_hashedpw = kdf.derive(entered_password.encode('utf-8'))
-    return entered_hashedpw == stored_hashedpw
+	if verify_password(username, masterpw):
+		return username
 
 
 def existing_user_menu(user):
@@ -134,18 +85,6 @@ def new_user_menu():
 
 	print('Successful Entry')
 
-
-def remove_user(user):
-	print('To Do')
-
-
-def see_passwords(user):
-	print('To Do')
-
-
-def add_password(user):
-	print('To Do')
-	
 
 def main():
 	if not os.path.exists('src/data/user_passwords.csv'):
